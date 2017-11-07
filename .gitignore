@@ -4,6 +4,7 @@
 db.sqlite3
 manage.py
 review_ladder_project/
+migrations/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
