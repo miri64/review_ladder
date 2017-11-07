@@ -1,0 +1,37 @@
+{% extends "review_ladder/base.html" %}
+{% block title %}{{ repository }} &ndash; Top {{ maintainers|length }} reviewers{% endblock %}
+{% block content %}
+<h1>{{ repository }} &ndash; Top {{ maintainers|length }} reviewers</h1>
+<table>
+    <thead>
+        <tr><th>Place</th><th>Maintainer</th><th>Score</th></tr>
+    </thead>
+    <tbody>
+{% for maintainer in maintainers %}
+        <tr>
+            <td>{{ forloop.counter0|add:1 }}</td>
+            <td>{{ maintainer.name }}</td>
+            <td>{{ maintainer.score }}</td>
+        </tr>
+{% endfor %}
+    </tbody>
+</table>
+{% endblock content %}
+{% block footer %}
+<p>
+    Scores are calculated as follows:
+    <ul>
+    <li>For every approval a reviewer gets {{ scores.approval }} points.</li>
+    <li>For every change request a reviewer gets {{ scores.change_request }}
+        points.</li>
+    <li>For every other comment a reviewer gets {{ scores.comment }}
+        points.</li>
+    <li>For every merged pull request the author of the merge commit gets
+        {{ scores.merge }} points.</li>
+    <li>Comments, approvals and change requests in a reviewers own pull request
+        are not counted.</li>
+    <li>Dismissed approvals and change requests are degraded to a comment
+        score.</li>
+    </ul>
+</p>
+{% endblock footer %}
