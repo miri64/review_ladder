@@ -76,16 +76,21 @@ def verify_request_signature(request):
         raise HttpErrorResponse(HttpResponseForbidden('Permission denied.'))
 
 def handle_pull_request_event(data):
+    if (data["repository"]["full_name"] != GITHUB_REPO):
+        return HttpResponseBadRequest("Unexpected data")
+    json_pr = data["pull_request"]
     if (data["action"] == "opened") or \
-        ((data["action"] == "closed") and data["merged"]):
-        pr, _ = PullRequest.from_github_json(data["pull_request"])
-        if (data["action"] == "closed") and data["merged"]:
+        ((data["action"] == "closed") and json_pr["merged"]):
+        pr, _ = PullRequest.from_github_json(json_pr)
+        if (data["action"] == "closed") and json_pr["merged"]:
             c = json_commit(json_pr["merge_commit_sha"])
             if (c.get("author")):
                 Merge.from_github_json(c, pr)
     return HttpResponse("Done")
 
 def handle_pull_request_review_event(data):
+    if (data["repository"]["full_name"] != GITHUB_REPO):
+        return HttpResponseBadRequest("Unexpected data")
     json_review = data["review"]
     if data["action"] == "submitted":
         pr, _ = PullRequest.from_github_json(data["pull_request"])
@@ -96,6 +101,8 @@ def handle_pull_request_review_event(data):
     return HttpResponse("Done")
 
 def handle_pull_request_comment_event(data):
+    if (data["repository"]["full_name"] != GITHUB_REPO):
+        return HttpResponseBadRequest("Unexpected data")
     json_comment = data["comment"]
     if data["action"] == "created":
         pr, _ = PullRequest.from_github_json(data["pull_request"])

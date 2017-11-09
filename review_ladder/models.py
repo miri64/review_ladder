@@ -39,7 +39,6 @@ class PullRequest(models.Model):
     class Meta:
         unique_together = (("repo", "number"), )
 
-    id = models.IntegerField(primary_key=True, unique=True)
     repo = models.CharField(max_length=100,
                             validators=[validators.RegexValidator("[^/]+/[^/]+")])
     number = models.IntegerField()
@@ -52,11 +51,10 @@ class PullRequest(models.Model):
     @classmethod
     def from_github_json(cls, json_pr):
         author, _ = User.from_github_json(json_pr["user"])
-        return cls.objects.get_or_create(
-                id=json_pr["id"],
+        return cls.objects.update_or_create(
                 repo=GITHUB_REPO,
                 number=json_pr["number"],
-                author=author
+                author=author,
             )
 
 class Comment(models.Model):
