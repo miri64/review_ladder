@@ -102,11 +102,12 @@ def handle_pull_request_comment_event(data):
 @csrf_exempt
 @require_POST
 def webhook(request):
-    try:
-        verify_request_source(request)
-        verify_request_signature(request)
-    except HttpErrorResponse as e:
-        return e.response
+    if hasattr(settings, "GITHUB_WEBHOOK_KEY"):
+        try:
+            verify_request_source(request)
+            verify_request_signature(request)
+        except HttpErrorResponse as e:
+            return e.response
     if not request.is_ajax():
         return HttpResponseBadRequest("Expecting AJAX data")
     event = request.META.get('HTTP_X_GITHUB_EVENT', None)
