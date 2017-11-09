@@ -17,7 +17,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name='review-ladder',
-    version='0.0.0.dev0',
+    version='0.1.0',
     packages=find_packages(),
     include_package_data=True,
     license='MIT License',
@@ -26,7 +26,7 @@ setup(
     url='https://www.todo.com/',
     author='Martine Lenders',
     author_email='m.lenders@fu-berlin.de',
-    install_requires=["django>=1.11", "dateutil", "ipaddress", "requests", "schedule"],
+    install_requires=["django>=1.11", "python-dateutil", "ipaddress", "requests", "schedule"],
     classifiers=[
         'Environment :: Web Environment',
         'Framework :: Django',
