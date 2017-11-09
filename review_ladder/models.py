@@ -60,10 +60,10 @@ class PullRequest(models.Model):
             )
 
 class Comment(models.Model):
-    COM = 1.0   # comment
+    COM = .1    # comment
     CRQ = 4.0   # change request
     ACK = 5.0   # approval
-    MRG = 3.0   # merge (not a comment, but to keep the scores together it is here)
+    MRG = 5.0  # merge (not a comment, but to keep the scores together it is here)
     JSON_COMMENT_LOT = {
             "commented": COM,
             "dismissed": COM,
