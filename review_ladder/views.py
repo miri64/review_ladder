@@ -1,9 +1,20 @@
 from django.conf import settings
 from django.db.models import Q, Count
+from django.http import HttpResponse, HttpResponseForbidden
+from django.http import HttpResponseBadRequest, HttpResponseServerError
+from django.views.decorators.http import require_POST
 from django.shortcuts import render
+from django.utils.encoding import force_bytes
+from django.views.decorators.csrf import csrf_exempt
+
+from ipaddress import ip_address, ip_network
+try:
+    import simplejson as json
+except ImportError:
+    import json
 
 # Create your views here.
-from .models import User, Comment
+from .models import Comment, Merge, PullRequest, User
 from .github import *
 
 def index(request):
@@ -25,3 +36,88 @@ def index(request):
                 }
         }
     return render(request, "review_ladder/index.html", context)
+
+class HttpErrorResponse(Exception):
+    def __init__(self, response):
+        self.response = response
+
+def verify_request_source(request):
+    # Verify if request came from GitHub
+    forwarded_for = u'{}'.format(request.META.get('HTTP_X_FORWARDED_FOR'))
+    client_ip_address = ip_address(forwarded_for)
+    whitelist = json_hooks()
+
+    for valid_ip in whitelist:
+        if client_ip_address in ip_network(valid_ip):
+            return
+    else:
+        raise HttpErrorResponse(HttpResponseForbidden('Permission denied.'))
+
+def verify_request_signature(request):
+    # Verify the request signature
+    header_signature = request.META.get('HTTP_X_HUB_SIGNATURE')
+    if header_signature is None:
+        raise HttpErrorResponse(HttpResponseForbidden('Permission denied.'))
+
+    sha_name, signature = header_signature.split('=')
+    if sha_name != 'sha1':
+        raise HttpErrorResponse(HttpResponseServerError('Operation not supported.',
+            status=501))
+
+    mac = hmac.new(force_bytes(settings.GITHUB_WEBHOOK_KEY),
+                   msg=force_bytes(request.body), digestmod=sha1)
+    if not hmac.compare_digest(force_bytes(mac.hexdigest()),
+                               force_bytes(signature)):
+        raise HttpErrorResponse(HttpResponseForbidden('Permission denied.'))
+
+def handle_pull_request_event(data):
+    if (data["action"] == "opened") or \
+        ((data["action"] == "closed") and data["merged"]):
+        pr, _ = PullRequest.from_github_json(data["pull_request"])
+        if (data["action"] == "closed") and data["merged"]:
+            c = json_commit(json_pr["merge_commit_sha"])
+            if (c.get("author")):
+                Merge.from_github_json(c, pr)
+    return HttpResponse("Done")
+
+def handle_pull_request_review_event(data):
+    json_review = data["review"]
+    if data["action"] == "submitted":
+        pr, _ = PullRequest.from_github_json(data["pull_request"])
+        Comment.from_github_review_json(json_review, pr)
+    elif data["action"] == "dismissed":
+        # degrade review to a comment
+        comment = Comment.objects.filter(id=json_review["id"]).update(type=Comment.COM)
+    return HttpResponse("Done")
+
+def handle_pull_request_comment_event(data):
+    json_comment = data["review"]
+    if data["action"] == "created":
+        pr, _ = PullRequest.from_github_json(data["pull_request"])
+        Comment.from_github_json(json_comment, pr)
+    elif data["action"] == "deleted":
+        Comment.objects.filter(id=json_comment["id"]).delete()
+    return HttpResponse("Done")
+
+@csrf_exempt
+@require_POST
+def webhook(request):
+    try:
+        verify_request_source(request)
+        verify_request_signature(request)
+    except HttpErrorResponse as e:
+        return e.response
+    if not request.is_ajax():
+        return HttpResponseBadRequest("Expecting AJAX data")
+    event = request.META.get('HTTP_X_GITHUB_EVENT', None)
+
+    if event == "ping":
+        return HttpResponse("pong")
+    elif event == "pull_request":
+        return handle_pull_request_event(json.loads(request.body))
+    elif event == "pull_request_review":
+        return handle_pull_request_review_event(json.loads(request.body))
+    elif event == "pull_request_review_comment":
+        return handle_pull_request_comment_event(json.loads(request.body))
+
+    return HttpResponse(status=204)
