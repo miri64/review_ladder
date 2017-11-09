@@ -1,17 +1,34 @@
 {% extends "review_ladder/base.html" %}
 {% block title %}{{ repository }} &ndash; Top {{ maintainers|length }} reviewers{% endblock %}
 {% block content %}
-<h1>{{ repository }} &ndash; Top {{ maintainers|length }} reviewers</h1>
-<table>
+<h1 class="display-4">{{ repository }} &ndash; Top {{ maintainers|length }} reviewers</h1>
+<table class="table table-responsive table-striped w-100">
     <thead>
-        <tr><th>Place</th><th>Maintainer</th><th>Score</th></tr>
+        <tr>
+            <th class="text-center" scope="col">Place</th>
+            <th class="w-100" scope="col">Maintainer</th>
+            <th class="text-right" scope="col">Score</th>
+        </tr>
     </thead>
     <tbody>
 {% for maintainer in maintainers %}
         <tr>
-            <td>{{ forloop.counter0|add:1 }}</td>
-            <td>{{ maintainer.name }}</td>
-            <td>{{ maintainer.score }}</td>
+            <th class="text-center" scope="row">{{ forloop.counter0|add:1 }}</th>
+            <td>
+                <img class="mr-1" height="20" src="{{ maintainer.avatar_url }}" />
+                <a href="https://github.com/{{ maintainer.name }}" target="_blank">{{ maintainer.name }}</a>
+            </td>
+            <td class="text-right">
+                <span data-toggle="tooltip" data-placement="left" data-html="true"
+                      title="<dl>
+                                <dt>Approvals</dt><dd>{{ maintainer.stats.approvals }}</dd>
+                                <dt>Change requests</dt><dd>{{ maintainer.stats.change_requests }}</dd>
+                                <dt>Comments</dt><dd>{{ maintainer.stats.comments }}</dd>
+                                <dt>Merges</dt><dd>{{ maintainer.stats.merges }}</dd>
+                             </dl>">
+                    {{ maintainer.score|floatformat:1 }}
+                </span>
+            </td>
         </tr>
 {% endfor %}
     </tbody>
