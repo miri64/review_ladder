@@ -9,6 +9,9 @@
 import os
 from setuptools import find_packages, setup
 
+with open(os.path.join(os.path.dirname(__file__), 'README.rst')) as readme:
+    README = readme.read()
+
 # allow setup.py to be run from any path
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
@@ -18,7 +21,8 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     license='MIT License',
-    description='A tier for scoring reviews of the maintainers of a repository.',
+    description='A django app that rates the performance of the maintainers of a GitHub project and displays them as a Top 20 ladder.',
+    long_description=README,
     url='https://www.todo.com/',
     author='Martine Lenders',
     author_email='m.lenders@fu-berlin.de',
