@@ -48,11 +48,12 @@
     <li>For every approval a reviewer gets {{ scores.approval }} points.</li>
     <li>For every change request a reviewer gets {{ scores.change_request }}
         points.</li>
-    <li>For every other comment a reviewer gets {{ scores.comment }}
-        points.</li>
+    <li>For every review comment even the once in a change request or approval
+        (but not "normal" comments, since they are "issue comments" in GitHub's
+        API) a reviewer gets {{ scores.comment }} points.</li>
     <li>For every merged pull request the author of the merge commit gets
         {{ scores.merge }} points.</li>
-    <li>Comments, approvals and change requests in a reviewers own pull request
+    <li>Comments, approvals and change requests in a reviewer's own pull request
         are not counted.</li>
     <li>Dismissed approvals and change requests are degraded to a comment
         score.</li>
