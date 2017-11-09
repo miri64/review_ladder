@@ -28,6 +28,16 @@ Quick start
         'review_ladder',
     ]
 
+4. Configure templates to also watch for the subdirectory ``templates``::
+
+    TEMPLATES = [
+        {
+            ...
+            'DIRS': ['templates'],
+            ...
+        }
+    ]
+
 4. Add the following options to your project's settings.py to access GitHub::
 
     GITHUB_API = "https://api.github.com"   # The link to the GitHub API

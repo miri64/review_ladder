@@ -11,6 +11,7 @@ from django.db import transaction
 from django.db.utils import OperationalError
 
 import datetime
+import logging
 import requests
 import re
 import schedule
@@ -25,6 +26,7 @@ if settings.GITHUB_USER and settings.GITHUB_PW:
 else:
     GITHUB_AUTH = None
 
+LOGGER = logging.getLogger(__name__)
 GITHUB_REPO = "%s/%s" % (settings.GITHUB_REPO_USER, settings.GITHUB_REPO_NAME)
 RATE_LIMIT_WAIT = 60
 
@@ -40,6 +42,7 @@ def get(url, *args, **kwargs):
             time.sleep((datetime.datetime.now() - LAST_WAIT).total_seconds() + 5)
             LAST_WAIT = datetime.datetime.now()
     kwargs["auth"] = GITHUB_AUTH
+    LOGGER.debug("Get %s", url)
     res = requests.get(url, *args, **kwargs)
     if res.status_code == 403:
         # wait because of rate limitation
