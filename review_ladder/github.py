@@ -30,12 +30,11 @@ LOGGER = logging.getLogger(__name__)
 GITHUB_REPO = "%s/%s" % (settings.GITHUB_REPO_USER, settings.GITHUB_REPO_NAME)
 RATE_LIMIT_WAIT = 60
 
-GETS = 0
+GETS = 1
 LAST_WAIT = datetime.datetime.now()
 
 def get(url, *args, **kwargs):
     global GETS, LAST_WAIT
-    GETS += 1
     if (GETS % 5000) == 0:
         if ((datetime.datetime.now() - LAST_WAIT) < datetime.timedelta(hours=1)):
             # wait because of rate limitation
@@ -44,8 +43,11 @@ def get(url, *args, **kwargs):
     kwargs["auth"] = GITHUB_AUTH
     LOGGER.debug("Get %s", url)
     res = requests.get(url, *args, **kwargs)
+    GETS += 1
     if res.status_code == 403:
         # wait because of rate limitation
+        LOGGER.error("Reached rate limitation. Sleeping for %u sec" % \
+                     ((datetime.datetime.now() - LAST_WAIT).total_seconds() + 5))
         time.sleep((datetime.datetime.now() - LAST_WAIT).total_seconds() + 5)
         LAST_WAIT = datetime.datetime.now()
 
@@ -67,7 +69,7 @@ def github_json_pagination(url, params={}, page=1):
         page += 1
 
 def json_hooks():
-    return get('%s/meta' % settings.GITHUB_API).json()['hooks']
+    return get('%s/meta' % settings.GITHUB_API).json().get("hooks", [])
 
 def json_prs(page=1):
     return github_json_pagination(

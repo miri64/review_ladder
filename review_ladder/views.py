@@ -4,9 +4,11 @@ from django.http import HttpResponse, HttpResponseForbidden
 from django.http import HttpResponseBadRequest, HttpResponseServerError
 from django.views.decorators.http import require_POST
 from django.shortcuts import render
-from django.utils.encoding import force_bytes
+from django.utils.encoding import force_bytes, force_str
 from django.views.decorators.csrf import csrf_exempt
 
+import hmac
+from hashlib import sha1
 from ipaddress import ip_address, ip_network
 try:
     import simplejson as json
@@ -44,7 +46,7 @@ class HttpErrorResponse(Exception):
 def verify_request_source(request):
     # Verify if request came from GitHub
     forwarded_for = u'{}'.format(request.META.get('HTTP_X_FORWARDED_FOR'))
-    client_ip_address = ip_address(forwarded_for)
+    client_ip_address = ip_address(forwarded_for.split(",")[0])
     whitelist = json_hooks()
 
     for valid_ip in whitelist:
@@ -91,7 +93,7 @@ def handle_pull_request_review_event(data):
     return HttpResponse("Done")
 
 def handle_pull_request_comment_event(data):
-    json_comment = data["review"]
+    json_comment = data["comment"]
     if data["action"] == "created":
         pr, _ = PullRequest.from_github_json(data["pull_request"])
         Comment.from_github_json(json_comment, pr)
@@ -102,23 +104,23 @@ def handle_pull_request_comment_event(data):
 @csrf_exempt
 @require_POST
 def webhook(request):
-    if hasattr(settings, "GITHUB_WEBHOOK_KEY"):
-        try:
-            verify_request_source(request)
+    try:
+        verify_request_source(request)
+        if hasattr(settings, "GITHUB_WEBHOOK_KEY"):
             verify_request_signature(request)
-        except HttpErrorResponse as e:
-            return e.response
-    if not request.is_ajax():
-        return HttpResponseBadRequest("Expecting AJAX data")
+    except HttpErrorResponse as e:
+        return e.response
+    if request.content_type != "application/json":
+        return HttpResponseBadRequest("Expecting JSON data")
     event = request.META.get('HTTP_X_GITHUB_EVENT', None)
 
     if event == "ping":
         return HttpResponse("pong")
     elif event == "pull_request":
-        return handle_pull_request_event(json.loads(request.body))
+        return handle_pull_request_event(json.loads(force_str(request.body)))
     elif event == "pull_request_review":
-        return handle_pull_request_review_event(json.loads(request.body))
+        return handle_pull_request_review_event(json.loads(force_str(request.body)))
     elif event == "pull_request_review_comment":
-        return handle_pull_request_comment_event(json.loads(request.body))
+        return handle_pull_request_comment_event(json.loads(force_str(request.body)))
 
     return HttpResponse(status=204)
