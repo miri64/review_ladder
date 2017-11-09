@@ -4,11 +4,11 @@
 <h1 class="display-4">
     {{ repository }} &ndash; Top {{ maintainers|length }} reviewers
 </h1>
+{% if since %}
 <h2>
-    {% if since %}
     (since {{ since }})
-    {% endif %}
 </h2>
+{% endif %}
 <table class="table table-responsive table-striped w-100">
     <thead>
         <tr>
