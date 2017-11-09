@@ -7,6 +7,7 @@ from django.shortcuts import render
 from django.utils.encoding import force_bytes, force_str
 from django.views.decorators.csrf import csrf_exempt
 
+import dateutil.parser
 import hmac
 from hashlib import sha1
 from ipaddress import ip_address, ip_network
@@ -37,6 +38,8 @@ def index(request):
                     "merge": Comment.MRG,
                 }
         }
+    if hasattr(settings, "GITHUB_SINCE"):
+        context["since"] = dateutil.parser.parse(settings.GITHUB_SINCE)
     return render(request, "review_ladder/index.html", context)
 
 class HttpErrorResponse(Exception):

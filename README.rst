@@ -73,4 +73,14 @@ Quick start
    - Pull Request review comment
 
    For more security you can a secret to the webhook and configure it in your
-   project's setting.py using the `GITHUB_WEBHOOK_KEY` variable.
+   project's settings.py using the GITHUB_WEBHOOK_KEY variable.
+
+Restricting PR history
+----------------------
+You can restrict the PR history (with regard to when they were updated) that is
+downloaded in the daily updates by setting the GITHUB_SINCE variable as a string
+that can be recognized by the `dateutil`_ module in your project's settings.py::
+
+    GITHUB_SINCE = "2017-11-09 18:34:01 +0200"
+
+:: _dateutil: https://dateutil.readthedocs.io/en/stable/

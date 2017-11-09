@@ -11,6 +11,7 @@ from django.db import transaction
 from django.db.utils import OperationalError
 
 import datetime
+import dateutil.parser
 import logging
 import requests
 import re
@@ -41,8 +42,8 @@ def get(url, *args, **kwargs):
             time.sleep((datetime.datetime.now() - LAST_WAIT).total_seconds() + 5)
             LAST_WAIT = datetime.datetime.now()
     kwargs["auth"] = GITHUB_AUTH
-    LOGGER.debug("Get %s", url)
     res = requests.get(url, *args, **kwargs)
+    LOGGER.debug("Got %s" % res.url)
     GETS += 1
     if res.status_code == 403:
         # wait because of rate limitation
@@ -64,19 +65,45 @@ def github_json_pagination(url, params={}, page=1):
             match = re.search(r'page=(\d+)[^>]*>; rel="last"', res.headers['Link'])
             if match:
                 last = int(match.group(1))
-        for pr in res.json():
-            yield pr
+        for item in res.json():
+            yield item
+        page += 1
+
+def github_json_search_pagination(url, params={}, page=1):
+    last = 1
+    while page <= last:
+        params["page"] = page
+        res = get(url, params=params)
+        if res.status_code != 200:
+            break
+        if "Link" in res.headers:
+            match = re.search(r'page=(\d+)[^>]*>; rel="last"', res.headers['Link'])
+            if match:
+                last = int(match.group(1))
+        for item in res.json().get("items", []):
+            yield item
         page += 1
 
 def json_hooks():
     return get('%s/meta' % settings.GITHUB_API).json().get("hooks", [])
 
 def json_prs(page=1):
-    return github_json_pagination(
-            '%s/repos/%s/pulls' % (settings.GITHUB_API, GITHUB_REPO),
-            {"state": "all"},
-            page=page
-        )
+    if hasattr(settings, "GITHUB_SINCE"):
+        since_str = dateutil.parser.parse(settings.GITHUB_SINCE).isoformat()
+        return github_json_search_pagination(
+                '%s/search/issues' % (settings.GITHUB_API),
+                {
+                    "q": "repo:%s type:pr updated:>=%s" % (GITHUB_REPO, settings.GITHUB_SINCE),
+                    "sort": "updated",
+                },
+                page=page
+            )
+    else:
+        return github_json_pagination(
+                '%s/repos/%s/pulls' % (settings.GITHUB_API, GITHUB_REPO),
+                {"state": "all"},
+                page=page
+            )
 
 def json_comments(pr, page=1):
     return github_json_pagination(
@@ -103,7 +130,11 @@ def import_models(pr_page=1):
                     Comment.from_github_json(json_comment, pr)
                 for json_review in json_reviews(pr.number):
                     Comment.from_github_review_json(json_review, pr)
-            if json_pr["merged_at"]:
+            if ("merged_at" not in json_pr) and json_pr["state"] == "closed":
+                # PR data came through search => we need to get the actual object
+                res = get('%s/repos/%s/pulls/%d' % (settings.GITHUB_API, GITHUB_REPO, pr.number))
+                json_pr = res.json()
+            if json_pr.get("merged_at", None):
                 c = json_commit(json_pr["merge_commit_sha"])
                 if "author" not in c:
                     # HTTP error returned an empty object
@@ -112,11 +143,11 @@ def import_models(pr_page=1):
         except OperationalError as e:
             continue    # skip for now and try in next round
 
-schedule.every().day.do(import_models)
+import_schedule = schedule.every().day.do(import_models)
 
 class GithubImporter(threading.Thread):
     def run(self):
         while True:
-            import_models()
+            import_schedule.run()
             schedule.run_pending()
             time.sleep(3600)

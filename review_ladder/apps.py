@@ -8,5 +8,5 @@ class ReviewLadderConfig(AppConfig):
         from .github import GithubImporter
         import sys
 
-        if (sys.argv[0] != "manage.py") or (sys.argv[1] in ["runserver"]):
+        if not sys.argv[0].endswith("manage.py") or (sys.argv[1] in ["runserver"]):
             GithubImporter().start()

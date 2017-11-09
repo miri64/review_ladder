@@ -1,7 +1,14 @@
 {% extends "review_ladder/base.html" %}
 {% block title %}{{ repository }} &ndash; Top {{ maintainers|length }} reviewers{% endblock %}
 {% block content %}
-<h1 class="display-4">{{ repository }} &ndash; Top {{ maintainers|length }} reviewers</h1>
+<h1 class="display-4">
+    {{ repository }} &ndash; Top {{ maintainers|length }} reviewers
+</h1>
+<h2>
+    {% if since %}
+    (since {{ since }})
+    {% endif %}
+</h2>
 <table class="table table-responsive table-striped w-100">
     <thead>
         <tr>
