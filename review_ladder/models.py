@@ -1,5 +1,8 @@
 from django.db import models
+from django.conf import settings
 from django.core import validators
+
+GITHUB_REPO = "%s/%s" % (settings.GITHUB_REPO_USER, settings.GITHUB_REPO_NAME)
 
 # Create your models here.
 class User(models.Model):
@@ -24,6 +27,14 @@ class User(models.Model):
                 "merges": self.merges.count(),
             }
 
+    @classmethod
+    def from_github_json(cls, json_user):
+        return cls.objects.get_or_create(
+                id=json_user["id"],
+                avatar_url=json_user["avatar_url"],
+                name=json_user["login"]
+            )
+
 class PullRequest(models.Model):
     class Meta:
         unique_together = (("repo", "number"), )
@@ -38,12 +49,27 @@ class PullRequest(models.Model):
     def __str__(self):
         return "%s#%d" % (self.repo, self.number)
 
+    @classmethod
+    def from_github_json(cls, json_pr):
+        author, _ = User.from_github_json(json_pr["user"])
+        return cls.objects.get_or_create(
+                id=json_pr["id"],
+                repo=GITHUB_REPO,
+                number=json_pr["number"],
+                author=author
+            )
 
 class Comment(models.Model):
     COM = 1.0   # comment
     CRQ = 4.0   # change request
     ACK = 5.0   # approval
     MRG = 3.0   # merge (not a comment, but to keep the scores together it is here)
+    JSON_COMMENT_LOT = {
+            "commented": COM,
+            "dismissed": COM,
+            "changes_requested": CRQ,
+            "approved": ACK
+        }
 
     id = models.IntegerField(primary_key=True, unique=True)
     pr = models.ForeignKey("PullRequest", on_delete=models.CASCADE,
@@ -55,6 +81,24 @@ class Comment(models.Model):
                                       (ACK, "approval")),
                              default=COM)
 
+    @classmethod
+    def from_github_json(cls, json_comment, pr, type=COM):
+        user, _ = User.from_github_json(json_comment["user"])
+        return cls.objects.update_or_create(
+                id=json_comment["id"],
+                pr=pr,
+                user=user,
+                defaults={"type": type}
+            )
+
+    @classmethod
+    def from_github_review_json(cls, json_review, pr):
+        if json_review["state"].lower() not in cls.JSON_COMMENT_LOT:
+            # we don't count "pending" etc.
+            return None, False
+        return cls.from_github_json(json_review, pr,
+                                    cls.JSON_COMMENT_LOT[json_review["state"].lower()])
+
 class Merge(models.Model):
     sha = models.CharField(max_length=40,
                            validators=[validators.RegexValidator("[a-f0-9A-F]+")],
@@ -64,3 +108,12 @@ class Merge(models.Model):
 
     def __str__(self):
         return self.sha[:7]
+
+    @classmethod
+    def from_github_json(cls, json_commit, pr):
+        author, _ = User.from_github_json(json_commit["author"])
+        return cls.objects.get_or_create(
+                sha=json_commit["sha"],
+                author=author,
+                pr=pr
+            )
