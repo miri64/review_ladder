@@ -26,7 +26,7 @@ setup(
     url='https://www.todo.com/',
     author='Martine Lenders',
     author_email='m.lenders@fu-berlin.de',
-    install_requires=["requests", "schedule"],
+    install_requires=["django>=1.11", "ipaddress", "requests", "schedule"],
     classifiers=[
         'Environment :: Web Environment',
         'Framework :: Django',
