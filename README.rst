@@ -42,7 +42,8 @@ Quick start
 
     url('^review_ladder/', include('review_ladder.urls'))
 
-4. Run ``python3 manage.py migrate`` to create the review_ladder models.
+4. Run ``python3 manage.py makemigrations && python3 manage.py migrate`` to
+   create the review_ladder models.
 
 5. If you configured your project to use SQLite you might want to
    `increase the timeout to prevent "database is locked" errors
