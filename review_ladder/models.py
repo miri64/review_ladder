@@ -8,7 +8,7 @@ GITHUB_REPO = "%s/%s" % (settings.GITHUB_REPO_USER, settings.GITHUB_REPO_NAME)
 class User(models.Model):
     id = models.IntegerField(primary_key=True, unique=True)
     avatar_url = models.URLField()
-    name = models.CharField(max_length=30, unique=True)
+    name = models.CharField(max_length=30, unique=True, db_index=True)
 
     def __str__(self):
         return self.name
@@ -38,6 +38,9 @@ class User(models.Model):
 class PullRequest(models.Model):
     class Meta:
         unique_together = (("repo", "number"), )
+        indexes = [
+                models.Index(fields=("repo", "number")),
+            ]
 
     repo = models.CharField(max_length=100,
                             validators=[validators.RegexValidator("[^/]+/[^/]+")])
