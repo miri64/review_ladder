@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db.models import Q, Count
+from django.db import transaction
 from django.http import HttpResponse, HttpResponseForbidden
 from django.http import HttpResponseBadRequest, HttpResponseServerError
 from django.views.decorators.http import require_POST
@@ -41,6 +42,20 @@ def index(request):
     if hasattr(settings, "GITHUB_SINCE"):
         context["since"] = dateutil.parser.parse(settings.GITHUB_SINCE)
     return render(request, "review_ladder/index.html", context)
+
+def assignments(request):
+    maintainers = (User.objects
+                            .annotate(assignments_num=Count("assignments"))
+                            .filter(assignments_num__gt=0)
+                            .order_by("-assignments_num"))
+    context = {
+            "repository": GITHUB_REPO,
+            # score can still be 0 if comments were made in own PR
+            "maintainers": maintainers.all()[:20],
+        }
+    if hasattr(settings, "GITHUB_SINCE"):
+        context["since"] = dateutil.parser.parse(settings.GITHUB_SINCE)
+    return render(request, "review_ladder/assignments.html", context)
 
 class HttpErrorResponse(Exception):
     def __init__(self, response):
@@ -86,6 +101,20 @@ def handle_pull_request_event(data):
             c = json_commit(json_pr["merge_commit_sha"])
             if (c.get("author")):
                 Merge.from_github_json(c, pr)
+    if (data["action"] in ["assigned", "unassigned", "review_requested",
+                           "review_request_removed"]):
+        if data["action"] in ["assigned", "unnassigned"]:
+            json_assignee = data["assignee"]
+        else:
+            json_assignee = data["requested_reviewer"]
+        with transaction.atomic():
+            pr, _ = PullRequest.from_github_json(json_pr)
+            assignee, _ = User.from_github_json(json_assignee)
+            if data["action"] in ["assigned", "review_requested"]:
+                pr.assignees.add(assignee)
+            else:
+                pr.assignees.remove(assignee)
+            pr.save()
     return HttpResponse("Done")
 
 def handle_pull_request_review_event(data):

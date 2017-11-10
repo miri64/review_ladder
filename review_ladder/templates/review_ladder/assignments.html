@@ -1,0 +1,43 @@
+{% extends "review_ladder/base.html" %}
+{% block title %}{{ repository }} &ndash; Top {{ maintainers|length }} assignees{% endblock %}
+{% block content %}
+<h1 class="display-4">
+    {{ repository }} &ndash; Top {{ maintainers|length }} assignees
+</h1>
+{% if since %}
+<h2>
+    (since {{ since }})
+</h2>
+{% endif %}
+<ul class="nav nav-tabs">
+    <li class="nav-item">
+        <a class="nav-link" href="{% url "score" %}">Score</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link active" href="{% url "assignments" %}">Assignments</a>
+    </li>
+</ul>
+<table class="table table-responsive table-striped w-100">
+    <thead>
+        <tr>
+            <th class="text-center" scope="col">Place</th>
+            <th class="w-100" scope="col">Maintainer</th>
+            <th class="text-right" scope="col">Assignments</th>
+        </tr>
+    </thead>
+    <tbody>
+{% for maintainer in maintainers %}
+        <tr>
+            <th class="text-center" scope="row">{{ forloop.counter0|add:1 }}</th>
+            <td>
+                <img class="mr-1" height="20" src="{{ maintainer.avatar_url }}" />
+                <a href="https://github.com/{{ maintainer.name }}" target="_blank">{{ maintainer.name }}</a>
+            </td>
+            <td class="text-right">
+                {{ maintainer.assignments_num }}
+            </td>
+        </tr>
+{% endfor %}
+    </tbody>
+</table>
+{% endblock content %}

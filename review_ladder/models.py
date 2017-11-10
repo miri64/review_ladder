@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from django.conf import settings
 from django.core import validators
 
@@ -44,18 +44,38 @@ class PullRequest(models.Model):
     number = models.IntegerField()
     author = models.ForeignKey("User", null=True, blank=True,
                                on_delete=models.SET_NULL)
+    assignees = models.ManyToManyField("User", related_name="assignments")
 
     def __str__(self):
         return "%s#%d" % (self.repo, self.number)
 
     @classmethod
-    def from_github_json(cls, json_pr):
-        author, _ = User.from_github_json(json_pr["user"])
-        return cls.objects.update_or_create(
-                repo=GITHUB_REPO,
-                number=json_pr["number"],
-                author=author,
-            )
+    def from_github_json(cls, json_pr, json_events=[]):
+        with transaction.atomic():
+            author, _ = User.from_github_json(json_pr["user"])
+            pr, created = cls.objects.update_or_create(
+                    repo=GITHUB_REPO,
+                    number=json_pr["number"],
+                    author=author,
+                )
+            for json_event in json_events:
+                assignee = None
+                op = lambda user: None
+                if json_event["event"] == "review_requested":
+                    assignee, _ = User.from_github_json(json_event["requested_reviewer"])
+                    op = pr.assignees.add
+                elif json_event["event"] == "assigned":
+                    assignee, _ = User.from_github_json(json_event["assignee"])
+                    op = pr.assignees.add
+                elif json_event["event"] == "review_request_removed":
+                    assignee, _ = User.from_github_json(json_event["requested_reviewer"])
+                    op = pr.assignees.remove
+                elif json_event["event"] == "assigned":
+                    assignee, _ = User.from_github_json(json_event["assignee"])
+                    op = pr.assignees.remove
+                op(assignee)
+            pr.save()
+        return pr, created
 
 class Comment(models.Model):
     COM = .1    # comment

@@ -9,6 +9,14 @@
     (since {{ since }})
 </h2>
 {% endif %}
+<ul class="nav nav-tabs">
+    <li class="nav-item">
+        <a class="nav-link active" href="{% url "score" %}">Score</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="{% url "assignments" %}">Assignments</a>
+    </li>
+</ul>
 <table class="table table-responsive table-striped w-100">
     <thead>
         <tr>

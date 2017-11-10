@@ -105,6 +105,12 @@ def json_prs(page=1):
                 page=page
             )
 
+def json_issue_events(issue, page=1):
+    return github_json_pagination(
+            '%s/repos/%s/issues/%d/events' % (settings.GITHUB_API, GITHUB_REPO, issue),
+            page=page
+        )
+
 def json_comments(pr, page=1):
     return github_json_pagination(
             '%s/repos/%s/pulls/%d/comments' % (settings.GITHUB_API, GITHUB_REPO, pr),
@@ -124,7 +130,9 @@ def json_commit(sha):
 def import_models(pr_page=1):
     for json_pr in json_prs(pr_page):
         try:
-            pr, _ = PullRequest.from_github_json(json_pr)
+            pr, _ = PullRequest.from_github_json(json_pr, json_issue_events(
+                    json_pr["number"]
+                ))
             with transaction.atomic():
                 for json_comment in json_comments(pr.number):
                     Comment.from_github_json(json_comment, pr)
