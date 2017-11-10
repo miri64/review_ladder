@@ -39,7 +39,7 @@ class PullRequest(models.Model):
     class Meta:
         unique_together = (("repo", "number"), )
         indexes = [
-                models.Index(fields=("repo", "number")),
+                models.Index(fields=["repo", "number"]),
             ]
 
     repo = models.CharField(max_length=100,
