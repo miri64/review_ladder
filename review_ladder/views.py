@@ -3,6 +3,7 @@ from django.db.models import Q, Count
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseForbidden
 from django.http import HttpResponseBadRequest, HttpResponseServerError
+from django.views.decorators.cache import cache_page
 from django.views.decorators.http import require_POST
 from django.shortcuts import render
 from django.utils.encoding import force_bytes, force_str
@@ -21,6 +22,7 @@ except ImportError:
 from .models import Comment, Merge, PullRequest, User
 from .github import *
 
+@cache_page(2 * 60)
 def index(request):
     maintainers = sorted(User.objects
                             .annotate(comments_num=Count("comments"))
@@ -43,6 +45,7 @@ def index(request):
         context["since"] = dateutil.parser.parse(settings.GITHUB_SINCE)
     return render(request, "review_ladder/index.html", context)
 
+@cache_page(2 * 60)
 def assignments(request):
     maintainers = (User.objects
                             .annotate(assignments_num=Count("assignments"))
