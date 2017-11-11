@@ -1,7 +1,8 @@
 *~
 
 # Django test set-up
-db.sqlite3
+*.orig
+db.sqlite3*
 manage.py
 review_ladder_project/
 migrations/
