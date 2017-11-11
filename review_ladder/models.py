@@ -1,4 +1,5 @@
 from django.db import models, transaction
+from django.db.models import Q, Count
 from django.conf import settings
 from django.core import validators
 
@@ -21,19 +22,51 @@ class User(models.Model):
     def __str__(self):
         return self.name
 
-    @property
-    def score(self):
-        return sum(c.type for c in self.comments.exclude(pr__author=self)) + \
-               Comment.MRG * self.merges.count()
+    def _filtered_stats(self, since=None, until=None):
+        comments = self.comments.exclude(pr__author=self)
+        merges = self.merges
 
-    @property
-    def stats(self):
+        if since:
+            comments = comments.filter(date__gte=since)
+            merges = merges.filter(date__gte=since)
+        if until:
+            comments = comments.filter(date__lte=until)
+            merges = merges.filter(date__lte=until)
+        return comments, merges
+
+    def score(self, since=None, until=None):
+        comments, merges = self._filtered_stats(since, until)
+        return sum(c.type for c in comments) + (Comment.MRG * merges.count())
+
+    def stats(self, since=None, until=None):
+        comments, merges = self._filtered_stats(since, until)
         return {
-                "approvals": self.comments.filter(type=Comment.ACK).exclude(pr__author=self).count(),
-                "change_requests": self.comments.filter(type=Comment.CRQ).exclude(pr__author=self).count(),
-                "comments": self.comments.filter(type=Comment.COM).exclude(pr__author=self).count(),
-                "merges": self.merges.count(),
+                "approvals": comments.filter(type=Comment.ACK).count(),
+                "change_requests": comments.filter(type=Comment.CRQ).count(),
+                "comments": comments.filter(type=Comment.COM).count(),
+                "merges": merges.count(),
             }
+
+    @classmethod
+    def get_ranking(cls, limit=20, since=None, until=None):
+        maintainers_query = sorted(cls.objects
+                                .annotate(comments_num=Count("comments"))
+                                .annotate(merges_num=Count("merges"))
+                                .filter(Q(comments_num__gt=0) | Q(merges_num__gt=0)),
+                             key=lambda u: u.score(since, until),
+                             reverse=True)
+        maintainers = []
+        for maintainer in maintainers_query:
+            if maintainer.score(since, until):
+                maintainers.append({
+                        "name": maintainer.name,
+                        "avatar_url": maintainer.avatar_url,
+                        "score": maintainer.score(since, until),
+                        "stats": maintainer.stats(since, until)
+                    })
+            if len(maintainers) == limit:
+                return maintainers
+
 
     @classmethod
     def from_github_json(cls, json_user):

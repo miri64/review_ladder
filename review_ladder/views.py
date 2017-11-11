@@ -1,10 +1,10 @@
 from django.conf import settings
-from django.db.models import Q, Count
 from django.db import transaction
+from django.db.models import Q, Count
 from django.http import HttpResponse, HttpResponseForbidden
 from django.http import HttpResponseBadRequest, HttpResponseServerError
 from django.views.decorators.cache import cache_page
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 from django.shortcuts import render
 from django.utils.encoding import force_bytes, force_str
 from django.views.decorators.csrf import csrf_exempt
@@ -22,18 +22,18 @@ except ImportError:
 from .models import Comment, Merge, PullRequest, User, START_DATE
 from .github import *
 
-@cache_page(2 * 60)
+@require_GET
 def index(request):
-    maintainers = sorted(User.objects
-                            .annotate(comments_num=Count("comments"))
-                            .annotate(merges_num=Count("merges"))
-                            .filter(Q(comments_num__gt=0) | Q(merges_num__gt=0)),
-                         key=lambda u: u.score,
-                         reverse=True)
+    since = None
+    until = None
+    if "since" in request.GET:
+        since = dateutil.parser.parse(request.GET["since"])
+    if "until" in request.GET:
+        until = dateutil.parser.parse(request.GET["until"])
     context = {
             "repository": GITHUB_REPO,
             # score can still be 0 if comments were made in own PR
-            "maintainers": [m for m in maintainers if m.score > 0][:20],
+            "maintainers": User.get_ranking(since=since, until=until),
             "scores": {
                     "comment": Comment.COM,
                     "change_request": Comment.CRQ,
