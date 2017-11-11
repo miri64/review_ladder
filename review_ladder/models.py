@@ -65,7 +65,8 @@ class User(models.Model):
                         "stats": maintainer.stats(since, until)
                     })
             if len(maintainers) == limit:
-                return maintainers
+                break
+        return maintainers
 
 
     @classmethod
