@@ -2,7 +2,15 @@ from django.db import models, transaction
 from django.conf import settings
 from django.core import validators
 
+import datetime
+import dateutil.parser
+
 GITHUB_REPO = "%s/%s" % (settings.GITHUB_REPO_USER, settings.GITHUB_REPO_NAME)
+
+if hasattr(settings, "GITHUB_SINCE"):
+    START_DATE = dateutil.parser.parse(settings.GITHUB_SINCE)
+else:
+    START_DATE = datetime.datetime.fromtimestamp(0)
 
 # Create your models here.
 class User(models.Model):

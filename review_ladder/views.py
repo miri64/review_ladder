@@ -19,7 +19,7 @@ except ImportError:
     import json
 
 # Create your views here.
-from .models import Comment, Merge, PullRequest, User
+from .models import Comment, Merge, PullRequest, User, START_DATE
 from .github import *
 
 @cache_page(2 * 60)
@@ -42,7 +42,7 @@ def index(request):
                 }
         }
     if hasattr(settings, "GITHUB_SINCE"):
-        context["since"] = dateutil.parser.parse(settings.GITHUB_SINCE)
+        context["since"] = START_DATE.isoformat()
     return render(request, "review_ladder/index.html", context)
 
 @cache_page(2 * 60)
@@ -57,7 +57,7 @@ def assignments(request):
             "maintainers": maintainers.all()[:20],
         }
     if hasattr(settings, "GITHUB_SINCE"):
-        context["since"] = dateutil.parser.parse(settings.GITHUB_SINCE)
+        context["since"] = START_DATE.isoformat()
     return render(request, "review_ladder/assignments.html", context)
 
 class HttpErrorResponse(Exception):

@@ -38,6 +38,10 @@
     <script>
         $(function () {
           $('[data-toggle="tooltip"]').tooltip()
-        })
+        });
+        $("#since").text((new Date($("#since").text())).toLocaleString("en-GB",
+                    { day: "numeric", month: "short", year: "numeric",
+                      hour: "2-digit", minute: "2-digit", second: "2-digit",
+                      timeZoneName: "short" }));
     </script>
 </html>
