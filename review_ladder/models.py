@@ -109,22 +109,26 @@ class Comment(models.Model):
                                       (CRQ, "change Request"),
                                       (ACK, "approval")),
                              default=COM)
+    date = models.DateTimeField()
 
     @classmethod
     def from_github_json(cls, json_comment, pr, type=COM):
-        user, _ = User.from_github_json(json_comment["user"])
-        return cls.objects.update_or_create(
-                id=json_comment["id"],
-                pr=pr,
-                user=user,
-                defaults={"type": type}
-            )
+        date = dateutil.parser.parse(json_comment["created_at"])
+        if date >= START_DATE:
+            user, _ = User.from_github_json(json_comment["user"])
+            return cls.objects.update_or_create(
+                    id=json_comment["id"],
+                    pr=pr,
+                    user=user,
+                    defaults={"type": type, "date": date}
+                )
 
     @classmethod
     def from_github_review_json(cls, json_review, pr):
         if json_review["state"].lower() not in cls.JSON_COMMENT_LOT:
             # we don't count "pending" etc.
             return None, False
+        json_review["created_at"] = json_review["submitted_at"]
         return cls.from_github_json(json_review, pr,
                                     cls.JSON_COMMENT_LOT[json_review["state"].lower()])
 
@@ -134,15 +138,19 @@ class Merge(models.Model):
                            primary_key=True, unique=True)
     pr = models.OneToOneField("PullRequest")
     author = models.ForeignKey("User", related_name="merges")
+    date = models.DateTimeField()
 
     def __str__(self):
         return self.sha[:7]
 
     @classmethod
     def from_github_json(cls, json_commit, pr):
-        author, _ = User.from_github_json(json_commit["author"])
-        return cls.objects.get_or_create(
-                sha=json_commit["sha"],
-                author=author,
-                pr=pr
-            )
+        date = dateutil.parser.parse(json_commit["commit"]["author"]["date"])
+        if date >= START_DATE:
+            author, _ = User.from_github_json(json_commit["author"])
+            return cls.objects.update_or_create(
+                    sha=json_commit["sha"],
+                    author=author,
+                    pr=pr,
+                    defaults={"date": date}
+                )
