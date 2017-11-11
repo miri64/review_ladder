@@ -31,7 +31,19 @@
             <th class="text-center" scope="row">{{ forloop.counter0|add:1 }}</th>
             <td>
                 <img class="mr-1" height="20" src="{{ maintainer.avatar_url }}" />
-                <a href="https://github.com/{{ maintainer.name }}" target="_blank">{{ maintainer.name }}</a>
+                <a href="https://github.com/{{ maintainer.name }}" target="_blank">
+                    {{ maintainer.name }}
+                </a>
+                <small>
+                    (<a href="https://github.com/RIOT-OS/RIOT/pulls/assigned/{{ maintainer.name }}"
+                       target="_blank">
+                        Assignments
+                    </a>,
+                    <a href="https://github.com/RIOT-OS/RIOT/pulls/review-requested/{{ maintainer.name }}"
+                       target="_blank">
+                        Requested Reviews
+                    </a>)
+                </small>
             </td>
             <td class="text-right">
                 {{ maintainer.assignments_num }}
