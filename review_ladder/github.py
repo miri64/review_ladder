@@ -29,29 +29,33 @@ else:
 
 LOGGER = logging.getLogger(__name__)
 GITHUB_REPO = "%s/%s" % (settings.GITHUB_REPO_USER, settings.GITHUB_REPO_NAME)
-RATE_LIMIT_WAIT = 60
 
-GETS = 1
-LAST_WAIT = datetime.datetime.now()
+REMAINING = None
+UNTIL = None
 
 def get(url, *args, **kwargs):
-    global GETS, LAST_WAIT
-    if (GETS % 5000) == 0:
-        if ((datetime.datetime.now() - LAST_WAIT) < datetime.timedelta(hours=1)):
-            # wait because of rate limitation
-            time.sleep((datetime.datetime.now() - LAST_WAIT).total_seconds() + 5)
-            LAST_WAIT = datetime.datetime.now()
-    kwargs["auth"] = GITHUB_AUTH
+    global REMAINING, UNTIL
+    if (REMAINING != None) and (UNTIL != None):
+        # rate limit
+        seconds = (UNTIL - datetime.datetime.now()).total_seconds() / REMAINING
+        LOGGER.debug("Rate limitation: sleeping for %f" % seconds)
+        if seconds > 0:
+            time.sleep(seconds)
+    if GITHUB_AUTH:
+        kwargs["auth"] = GITHUB_AUTH
     res = requests.get(url, *args, **kwargs)
-    LOGGER.debug("Got %s" % res.url)
-    GETS += 1
-    if res.status_code == 403:
-        # wait because of rate limitation
-        LOGGER.error("Reached rate limitation. Sleeping for %u sec" % \
-                     ((datetime.datetime.now() - LAST_WAIT).total_seconds() + 5))
-        time.sleep((datetime.datetime.now() - LAST_WAIT).total_seconds() + 5)
-        LAST_WAIT = datetime.datetime.now()
-
+    LOGGER.debug("Got %s (code: %d%s)" % \
+            (res.url, res.status_code, ", authenticated" if kwargs.get("auth", None) else ""))
+    REMAINING = int(res.headers.get("x-ratelimit-remaining", 5000))
+    UNTIL = datetime.datetime.fromtimestamp(
+            int(res.headers.get("x-ratelimit-reset", time.time() + (60 * 60)))
+        )
+    if (REMAINING == 0) or (res.status_code == 403):
+        seconds = (UNTIL - datetime.datetime.now()).total_seconds()
+        LOGGER.debug("Rate limitation: sleeping for %f" % seconds)
+        if seconds > 0:
+            time.sleep(seconds)
+        get(url, *args, **kwargs)
     return res
 
 def github_json_pagination(url, params={}, page=1):
@@ -59,8 +63,6 @@ def github_json_pagination(url, params={}, page=1):
     while page <= last:
         params["page"] = page
         res = get(url, params=params)
-        if res.status_code != 200:
-            break
         if "Link" in res.headers:
             match = re.search(r'page=(\d+)[^>]*>; rel="last"', res.headers['Link'])
             if match:
@@ -74,8 +76,6 @@ def github_json_search_pagination(url, params={}, page=1):
     while page <= last:
         params["page"] = page
         res = get(url, params=params)
-        if res.status_code != 200:
-            break
         if "Link" in res.headers:
             match = re.search(r'page=(\d+)[^>]*>; rel="last"', res.headers['Link'])
             if match:
