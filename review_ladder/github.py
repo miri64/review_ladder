@@ -19,7 +19,7 @@ import schedule
 import threading
 import time
 
-from .models import Comment, Merge, PullRequest, User
+from .models import Comment, Merge, PullRequest, User, START_DATE
 
 if settings.GITHUB_USER and settings.GITHUB_PW:
     GITHUB_AUTH = requests.auth.HTTPBasicAuth(settings.GITHUB_USER,
@@ -89,11 +89,11 @@ def json_hooks():
 
 def json_prs(page=1):
     if hasattr(settings, "GITHUB_SINCE"):
-        since_str = dateutil.parser.parse(settings.GITHUB_SINCE).isoformat()
+        since_str = START_DATE.isoformat() # START_DATE == settings.GITHUB_SINCE as datetime
         return github_json_search_pagination(
                 '%s/search/issues' % (settings.GITHUB_API),
                 {
-                    "q": "repo:%s type:pr updated:>=%s" % (GITHUB_REPO, settings.GITHUB_SINCE),
+                    "q": "repo:%s type:pr updated:>=%s" % (GITHUB_REPO, since_str),
                     "sort": "updated",
                 },
                 page=page
